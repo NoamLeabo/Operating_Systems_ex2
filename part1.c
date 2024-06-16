@@ -39,7 +39,6 @@ int main(int argc, char const *argv[])
             }
             for (int i = 0; i < atoi(argv[4]); i++)
             {
-                printf("writing to file: %s\n", argv[2]);
                 char* buffer = concatenate(argv[2], "\n");
                 int wr = write(file, buffer, strlen(buffer));
                 if (wr == -1)
@@ -68,7 +67,6 @@ int main(int argc, char const *argv[])
             }
             for (int i = 0; i < atoi(argv[4]); i++)
             {
-                printf("writing to file: %s\n", argv[3]);
                 char* buffer = concatenate(argv[3], "\n");
                 int wr = write(file, buffer, strlen(buffer));
                 if (wr == -1)
@@ -99,7 +97,6 @@ int main(int argc, char const *argv[])
         }
         for (int i = 0; i < atoi(argv[4]); i++)
         {
-            printf("writing to file: %s\n", argv[1]);
             char* buffer = concatenate(argv[1], "\n");
             int wr = write(file, buffer, strlen(buffer));
             if (wr == -1)
