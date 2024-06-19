@@ -8,7 +8,7 @@
 #define O_PREAPPEND 0x40000000
 
 // Define the standard buffer size for read and write operations
-#define BUFFER_SIZE 4096
+#define BUFFER_SIZE 5
 
 // Structure to hold the buffer and original flags
 typedef struct {
@@ -38,7 +38,7 @@ ssize_t buffered_write(buffered_file_t *bf, const void *buf, size_t count);
 ssize_t buffered_read(buffered_file_t *bf, void *buf, size_t count);
 
 // Function to flush the buffer to the file
-int buffered_flush(buffered_file_t *bf);
+int buffered_flush(char *buffer);
 
 // Function to close the buffered file
 int buffered_close(buffered_file_t *bf);
