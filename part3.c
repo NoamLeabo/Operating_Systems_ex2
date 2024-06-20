@@ -59,8 +59,8 @@ buffered_file_t *buffered_open(const char *pathname, int flags, ...)
     bf->fd = fid;
 
     // we create the buffers
-    bf->read_buffer = (char *)malloc(sizeof(BUFFER_SIZE));
-    bf->write_buffer = (char *)malloc(sizeof(BUFFER_SIZE));
+    bf->read_buffer = (char *)malloc(BUFFER_SIZE);
+    bf->write_buffer = (char *)malloc(BUFFER_SIZE);
 
     // in case of an error
     if (!bf->read_buffer || !bf->write_buffer)
@@ -121,6 +121,15 @@ int buffered_flush(buffered_file_t *bf)
     // if preappend flag is turned on
     else
     {
+        /*  
+        first we need to make sure we even have access to both
+        reading and writting from and to the file
+        */
+        if (!(bf->flags & O_RDWR))
+        {
+            return -1;
+        }
+        
         // we save the old offset so we could put it back at the end
         off_t offset = lseek(bf->fd, 0, SEEK_CUR);
         // we add the num of bytes we will be writting
@@ -304,7 +313,7 @@ int buffered_close(buffered_file_t *bf)
     /* we make sure we don't lose any written bytes */
 
     // we return the OS ptr to it's correct pos in the file using seek
-    if (!bf->read_buffer_pos)
+    if (bf->read_buffer_size - bf->read_buffer_pos > 0)
     {
         lseek(bf->fd, -(bf->read_buffer_size - bf->read_buffer_pos), SEEK_CUR);
         buffered_clean(bf->read_buffer);
@@ -341,6 +350,20 @@ int main() {
     }
 
     const char *text = "Hello, World!";
+    if (buffered_write(bf, text, strlen(text)) == -1) {
+        perror("buffered_write");
+        buffered_close(bf);
+        return 1;
+    }
+
+    char re[5];
+    if (buffered_read(bf, re, 5) == -1) {
+        perror("buffered_read");
+        buffered_close(bf);
+        return 1;
+    }
+
+    text = "Hello, World!";
     if (buffered_write(bf, text, strlen(text)) == -1) {
         perror("buffered_write");
         buffered_close(bf);
