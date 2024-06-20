@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "buffered_open.h": "c"
+        "buffered_open.h": "c",
+        "buffer": "c"
     }
 }

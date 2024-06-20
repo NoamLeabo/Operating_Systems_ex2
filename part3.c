@@ -12,7 +12,7 @@ buffered_file_t *buffered_open(const char *pathname, int flags, ...)
 
     buffered_file_t *bf = (buffered_file_t *)malloc(sizeof(buffered_file_t));
 
-    size_t fid = open(pathname, O_RDWR);
+    size_t fid = open(pathname, flags);
     if (fid < 0)
     {
         perror("open");
@@ -23,8 +23,8 @@ buffered_file_t *buffered_open(const char *pathname, int flags, ...)
     bf->read_buffer = (char *)malloc(sizeof(BUFFER_SIZE));
     bf->write_buffer = (char *)malloc(sizeof(BUFFER_SIZE));
 
-    bf->read_buffer_size = BUFFER_SIZE;
-    bf->write_buffer_size = BUFFER_SIZE;
+    bf->read_buffer_size = 0;
+    bf->write_buffer_size = 0;
 
     bf->write_buffer_pos = 0;
     bf->read_buffer_pos = 0;
@@ -76,6 +76,15 @@ ssize_t buffered_write(buffered_file_t *bf, const void *buf, size_t count)
         // if there is no space left
         if (bf->write_buffer_pos == BUFFER_SIZE)
         {
+            // we return the OS ptr to it's correct pos in the file using seek
+            if (bf->read_buffer_pos != 0)
+            {
+                lseek(bf->fd, BUFFER_SIZE - bf->read_buffer_pos, SEEK_CUR);
+                buffered_flush(bf->read_buffer);
+                bf->read_buffer_pos = 0;
+                bf->read_buffer_size = 0;
+            }
+
             // we push what's in the buffer to the file
             if (push_buffer_content(bf, bf->write_buffer, BUFFER_SIZE) < 0)
             {
@@ -97,12 +106,14 @@ ssize_t buffered_read(buffered_file_t *bf, void *buf, size_t count)
     for (int i = 0; i < count; i++)
     {
         // if there is no more to read from the buffer
-        if (bf->read_buffer_pos == BUFFER_SIZE || bf->read_buffer_pos == 0)
+        if (bf->read_buffer_size == 0 || bf->read_buffer_pos == bf->read_buffer_size)
         {
             /* we will get to the buffer more content from the actual file */
 
             // first we push what's in write_buffer to the file
             push_buffer_content(bf, bf->write_buffer, bf->write_buffer_pos);
+            bf->write_buffer_pos = 0;
+            bf->write_buffer_size = 0;
 
             // we clear the read buffer
             if (buffered_flush(bf->read_buffer) < 0)
@@ -121,7 +132,12 @@ ssize_t buffered_read(buffered_file_t *bf, void *buf, size_t count)
             // we reset the read_pos
             bf->read_buffer_pos = 0;
             // we set the bytes to the buffer
-            bf->read_buffer_size = bytes_read;
+            bf->read_buffer_size = strlen(bf->read_buffer);
+            // if we're at the end of the file
+            if (bf->read_buffer_size == 0)
+            {
+                return i;
+            }
         }
 
         b[i] = bf->read_buffer[bf->read_buffer_pos++];
@@ -131,7 +147,17 @@ ssize_t buffered_read(buffered_file_t *bf, void *buf, size_t count)
 
 int buffered_close(buffered_file_t *bf)
 {
-    // we make sure we don't lose any written bytes
+    /* we make sure we don't lose any written bytes */
+
+    // we return the OS ptr to it's correct pos in the file using seek
+    if (!bf->read_buffer_pos)
+    {
+        lseek(bf->fd, BUFFER_SIZE - bf->read_buffer_pos, SEEK_CUR);
+        buffered_flush(bf->read_buffer);
+        bf->read_buffer_pos = 0;
+        bf->read_buffer_size = 0;
+    }
+
     if (push_buffer_content(bf, bf->write_buffer, bf->write_buffer_pos) < 0)
     {
         return -1;
@@ -153,8 +179,18 @@ int buffered_close(buffered_file_t *bf)
 
 int main(int argc, char const *argv[])
 {
-    buffered_file_t *bf = buffered_open("tes.txt", 0);
+    buffered_file_t *bf = buffered_open("tes.txt", O_RDWR);
     printf("the id is: %d\n", bf->fd);
+
+    char re[5];
+    if (buffered_read(bf, re, 2) == -1)
+    {
+        perror("buffered_write");
+        return 1;
+    }
+
+    printf("%s\n",re);
+
 
     const char *text = "Hello, World!";
     if (buffered_write(bf, text, strlen(text)) == -1)
@@ -162,16 +198,14 @@ int main(int argc, char const *argv[])
         perror("buffered_write");
         return 1;
     }
-    printf("the string is: %s\n", bf->write_buffer);
+    printf("%s\n", bf->write_buffer);
 
-    const char *test = "\nThis is a test!";
-    if (buffered_write(bf, test, strlen(test)) == -1)
+    if (buffered_read(bf, re, 2) == -1)
     {
         perror("buffered_write");
         return 1;
     }
 
-    printf("the string is: %s\n", bf->write_buffer);
     if (buffered_close(bf))
     {
         perror("buffered_close");
