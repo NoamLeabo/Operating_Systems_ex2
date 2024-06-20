@@ -81,7 +81,7 @@ buffered_file_t *buffered_open(const char *pathname, int flags, ...)
 }
 
 // a Func to clean a given buffer
-int buffered_flush(char *buffer)
+int buffered_clean(char *buffer)
 {
     if (buffer == NULL)
     {
@@ -92,8 +92,10 @@ int buffered_flush(char *buffer)
 }
 
 // a Func to write an intire content in a buffer to the file
-ssize_t push_buffer_content(buffered_file_t *bf, char *buf, size_t count)
+int buffered_flush(buffered_file_t *bf)
 {
+    char *buf = bf->write_buffer;
+    size_t count = bf->write_buffer_pos;
     // in case the preappend flag ain't turned on
     if (!bf->preappend)
     {
@@ -109,7 +111,7 @@ ssize_t push_buffer_content(buffered_file_t *bf, char *buf, size_t count)
         // we reset the buffer status
         bf->write_buffer_pos = 0;
         // we flush the buffer
-        if (buffered_flush(bf->write_buffer) < 0)
+        if (buffered_clean(bf->write_buffer) < 0)
         {
             return -1;
         }
@@ -141,7 +143,7 @@ ssize_t push_buffer_content(buffered_file_t *bf, char *buf, size_t count)
             // update the counter
             total_bytes_written_to_backUp += bytes_written;
             // clear the buffer
-            buffered_flush(transfer);
+            buffered_clean(transfer);
             // we read the next chunk
             bytes_read = read(bf->fd, transfer, BUFFER_SIZE);
         }
@@ -167,7 +169,7 @@ ssize_t push_buffer_content(buffered_file_t *bf, char *buf, size_t count)
         // we reset the buffer status
         bf->write_buffer_pos = 0;
         // we clear the write_buffer
-        if (buffered_flush(bf->write_buffer) < 0)
+        if (buffered_clean(bf->write_buffer) < 0)
         {
             return -1;
         }
@@ -182,7 +184,7 @@ ssize_t push_buffer_content(buffered_file_t *bf, char *buf, size_t count)
             // update the counter
             bytes_returned_to_OG_file += bytes_written;
             // clearing the buffer
-            buffered_flush(transfer);
+            buffered_clean(transfer);
             // read again
             bytes_read = read(backUp, transfer, BUFFER_SIZE);
         }
@@ -224,13 +226,13 @@ ssize_t buffered_write(buffered_file_t *bf, const void *buf, size_t count)
             if (bf->read_buffer_pos != 0)
             {
                 lseek(bf->fd, -(bf->read_buffer_size - bf->read_buffer_pos), SEEK_CUR);
-                buffered_flush(bf->read_buffer);
+                buffered_clean(bf->read_buffer);
                 bf->read_buffer_pos = 0;
                 bf->read_buffer_size = 0;
             }
 
             // we push what's in the buffer to the file
-            if (push_buffer_content(bf, bf->write_buffer, BUFFER_SIZE) < 0)
+            if (buffered_flush(bf) < 0)
             {
                 return -1;
             }
@@ -260,13 +262,13 @@ ssize_t buffered_read(buffered_file_t *bf, void *buf, size_t count)
             // first we push what's in write_buffer to the file
             if (bf->write_buffer_pos != 0)
             {
-                push_buffer_content(bf, bf->write_buffer, bf->write_buffer_pos);
+                buffered_flush(bf);
                 bf->write_buffer_pos = 0;
                 bf->write_buffer_size = 0;
             }
 
             // we clear the read buffer
-            if (buffered_flush(bf->read_buffer) < 0)
+            if (buffered_clean(bf->read_buffer) < 0)
             {
                 return -1;
             }
@@ -304,15 +306,15 @@ int buffered_close(buffered_file_t *bf)
     // we return the OS ptr to it's correct pos in the file using seek
     if (!bf->read_buffer_pos)
     {
-        lseek(bf->fd, -(BUFFER_SIZE - bf->read_buffer_pos), SEEK_CUR);
-        buffered_flush(bf->read_buffer);
+        lseek(bf->fd, -(bf->read_buffer_size - bf->read_buffer_pos), SEEK_CUR);
+        buffered_clean(bf->read_buffer);
         bf->read_buffer_pos = 0;
         bf->read_buffer_size = 0;
     }
 
     if (bf->write_buffer_pos != bf->write_buffer_size)
     {
-        if (push_buffer_content(bf, bf->write_buffer, bf->write_buffer_pos) < 0)
+        if (buffered_flush(bf) < 0)
         {
             return -1;
         }
@@ -331,43 +333,24 @@ int buffered_close(buffered_file_t *bf)
     // we now free the entire buffered_file_t
     free(bf);
 }
-
-int main(int argc, char const *argv[])
-{
-    buffered_file_t *bf = buffered_open("tes.txt", O_CREAT | O_RDWR);
-    printf("the id is: %d\n", bf->fd);
-
-    char FIR[5];
-    if (buffered_read(bf, FIR, 0) == -1)
-    {
-        perror("buffered_write");
+int main() {
+    buffered_file_t *bf = buffered_open("example.txt", O_RDWR | O_CREAT | O_PREAPPEND, 0644);
+    if (!bf) {
+        perror("buffered_open");
         return 1;
     }
 
-    printf("%s\n", FIR);
-
-    const char *text = "HELLOWORLD";
-    if (buffered_write(bf, text, strlen(text)) == -1)
-    {
+    const char *text = "Hello, World!";
+    if (buffered_write(bf, text, strlen(text)) == -1) {
         perror("buffered_write");
+        buffered_close(bf);
         return 1;
     }
 
-    printf("%s\n", bf->write_buffer);
-
-    char SEC[5];
-    if (buffered_read(bf, SEC, 2) == -1)
-    {
-        perror("buffered_write");
-        return 1;
-    }
-
-    printf("%s\n", SEC);
-
-    if (buffered_close(bf))
-    {
+    if (buffered_close(bf) == -1) {
         perror("buffered_close");
         return 1;
     }
+
     return 0;
 }
