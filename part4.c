@@ -50,11 +50,15 @@ void copy_file(const char *src, const char *dest, int copy_symlinks, int copy_pe
     // if src is a link and we're required to copy this as a symlink
     if (copy_symlinks && S_ISLNK(st.st_mode))
     {
-        if (symlink(src, dest) < 0)
+        // we check to which file in the dir we should bw linking to
+        char buffer[4096];
+        int linkNum = readlink(src, buffer,4096);
+        // we create the symlink
+        if (symlink(buffer, dest) < 0)
         {
             perror("symlink");
             exit(1);
-        }
+        } 
         return;
     }
 
@@ -210,6 +214,7 @@ void copy_directory(const char *src, const char *dest, int copy_symlinks, int co
     return;
 }
 
+// print usage
 void print_usage(const char *prog_name)
 {
     fprintf(stderr, "Usage: %s [-l] [-p] <source_directory> <destination_directory>", prog_name);
@@ -240,14 +245,17 @@ int main(int argc, char *argv[])
         }
     }
 
+    // we check validation of args
     if (optioned + 2 != argc) {
         print_usage(argv[0]);
         return EXIT_FAILURE;
     }
 
+    // we save the src and dest parameters
     const char *src_dir = argv[optioned];
     const char *dest_dir = argv[optioned + 1];
 
+    // w ecopy the dir
     copy_directory(src_dir, dest_dir, copy_symlinks, copy_permissions);
     
     return 0;
