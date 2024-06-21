@@ -8,7 +8,7 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "/home/noam/Desktop/vs/Operating_Systems_ex2/a.out",
-        "args": ["a", "b", "c", 3],
+        "args": ["-p" ,"-l", "src", "dest"],
         "stopAtEntry": false,
         "cwd": "${fileDirname}",
         "environment": [],
