@@ -17,7 +17,6 @@ buffered_file_t *buffered_open(const char *pathname, int flags, ...)
         perror("malloc");
         exit(1);
     }
-    
 
     // checking if other args were provided
     va_list ptr;
@@ -27,7 +26,7 @@ buffered_file_t *buffered_open(const char *pathname, int flags, ...)
     va_end(ptr);
 
     // check for the preappend flag
-    if (flags - O_PREAPPEND >= 0)
+    if (flags & O_PREAPPEND)
     {
         bf->flags = flags - O_PREAPPEND;
         bf->preappend = 1;
@@ -68,7 +67,7 @@ buffered_file_t *buffered_open(const char *pathname, int flags, ...)
         perror("malloc");
         exit(1);
     }
-    
+
     // we set the sizes
     bf->read_buffer_size = 0;
     bf->write_buffer_size = 0;
@@ -121,7 +120,7 @@ int buffered_flush(buffered_file_t *bf)
     // if preappend flag is turned on
     else
     {
-        /*  
+        /*
         first we need to make sure we even have access to both
         reading and writting from and to the file
         */
@@ -129,7 +128,7 @@ int buffered_flush(buffered_file_t *bf)
         {
             return -1;
         }
-        
+
         // we save the old offset so we could put it back at the end
         off_t offset = lseek(bf->fd, 0, SEEK_CUR);
         // we add the num of bytes we will be writting
@@ -225,6 +224,14 @@ ssize_t buffered_write(buffered_file_t *bf, const void *buf, size_t count)
     // casting the buf into a const
     char *b = (char *)buf;
 
+    if (bf->read_buffer_pos != 0)
+    {
+        lseek(bf->fd, -(bf->read_buffer_size - bf->read_buffer_pos), SEEK_CUR);
+        buffered_clean(bf->read_buffer);
+        bf->read_buffer_pos = 0;
+        bf->read_buffer_size = 0;
+    }
+
     // trying to write each byte to the file_buffer
     for (int i = 0; i < count; i++)
     {
@@ -250,15 +257,22 @@ ssize_t buffered_write(buffered_file_t *bf, const void *buf, size_t count)
         // we set the content to the buffer
         bf->write_buffer[bf->write_buffer_pos++] = b[i];
     }
-    //return the num of bytes written
+    // return the num of bytes written
     return count;
 }
 
-// read from the read buffer 
+// read from the read buffer
 ssize_t buffered_read(buffered_file_t *bf, void *buf, size_t count)
 {
     // casting the buf into a const
     char *b = (char *)buf;
+
+    if (bf->write_buffer_pos != 0)
+    {
+        buffered_flush(bf);
+        bf->write_buffer_pos = 0;
+        bf->write_buffer_size = 0;
+    }
 
     // trying to read each byte from the file_buffer
     for (int i = 0; i < count; i++)
@@ -342,38 +356,7 @@ int buffered_close(buffered_file_t *bf)
     // we now free the entire buffered_file_t
     free(bf);
 }
-int main() {
-    buffered_file_t *bf = buffered_open("example.txt", O_RDWR | O_CREAT | O_PREAPPEND, 0644);
-    if (!bf) {
-        perror("buffered_open");
-        return 1;
-    }
-
-    const char *text = "Hello, World!";
-    if (buffered_write(bf, text, strlen(text)) == -1) {
-        perror("buffered_write");
-        buffered_close(bf);
-        return 1;
-    }
-
-    char re[5];
-    if (buffered_read(bf, re, 5) == -1) {
-        perror("buffered_read");
-        buffered_close(bf);
-        return 1;
-    }
-
-    text = "Hello, World!";
-    if (buffered_write(bf, text, strlen(text)) == -1) {
-        perror("buffered_write");
-        buffered_close(bf);
-        return 1;
-    }
-
-    if (buffered_close(bf) == -1) {
-        perror("buffered_close");
-        return 1;
-    }
-
+int main()
+{
     return 0;
 }
