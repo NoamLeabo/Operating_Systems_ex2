@@ -65,4 +65,18 @@ rm output_file.txt
 rm input_file.txt
 rm run
 
+# we compile the extanded tests
+gcc -o run extanded_tests.c buffered_open.h part3.c
+chmod +x run
+# we save the last chat printed to indicates if there was a fail
+res=$(./run | tail -c 1)
+# running the test and checking if all tests passed
+if [[ $res == 'P' ]]; then
+    echo "extended test PASSED!"
+else
+    echo "extended test FAILED!"
+fi
+
+rm run
+
 # End of script

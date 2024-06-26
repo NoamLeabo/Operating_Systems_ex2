@@ -268,13 +268,6 @@ ssize_t buffered_read(buffered_file_t *bf, void *buf, size_t count)
     // casting the buf into a const
     char *b = (char *)buf;
 
-    if (bf->write_buffer_pos != 0)
-    {
-        buffered_flush(bf);
-        bf->write_buffer_pos = 0;
-        bf->write_buffer_size = 0;
-    }
-
     // trying to read each byte from the file_buffer
     for (int i = 0; i < count; i++)
     {
@@ -356,8 +349,4 @@ int buffered_close(buffered_file_t *bf)
 
     // we now free the entire buffered_file_t
     free(bf);
-}
-int main()
-{
-    return 0;
 }
