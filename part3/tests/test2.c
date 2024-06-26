@@ -27,15 +27,15 @@ int main() {
     }
 
     buffered_file_t *newBf = buffered_open("output_file.txt", O_RDWR | O_PREAPPEND, 0644);
-    if (!bf) {
+    if (!newBf) {
         perror("buffered_open");
         return 1;
     }
     
-    int written = buffered_write(bf, into, toWrite);
+    int written = buffered_write(newBf, into, toWrite);
     if (toWrite != written) {
         perror("buffered_read");
-        buffered_close(bf);
+        buffered_close(newBf);
         return 1;
     }
 
