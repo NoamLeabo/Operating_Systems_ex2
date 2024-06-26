@@ -202,7 +202,7 @@ int buffered_flush(buffered_file_t *bf)
             return -1;
         }
 
-        // in case we lost date we fail
+        // in case we lost data we fail
         if (total_bytes_written_to_backUp != bytes_returned_to_OG_file)
         {
             return -1;
@@ -224,6 +224,7 @@ ssize_t buffered_write(buffered_file_t *bf, const void *buf, size_t count)
     // casting the buf into a const
     char *b = (char *)buf;
 
+    // if the read buffer ain't empty we flush it 
     if (bf->read_buffer_pos != 0)
     {
         lseek(bf->fd, -(bf->read_buffer_size - bf->read_buffer_pos), SEEK_CUR);
