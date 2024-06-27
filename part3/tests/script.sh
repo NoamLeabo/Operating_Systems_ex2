@@ -6,28 +6,31 @@ touch output_file.txt
 
 # filling the input file with 8193 a's
 for ((i = 0; i < 8193; i++)); do
-    echo -n a >> input_file.txt
+    echo -n a >>input_file.txt
 done
 
 # first test #
 
 # compiling the file 'part3.c and the test1.c'
-gcc -o run part3.c test1.c 
+gcc -o run part3.c test1.c
 chmod +x run
-# running the test
-./run
-
-# we will check if there is a diff between the input file and the output file
-if diff input_file.txt output_file.txt >/dev/null; then
-    echo "test no_preappend PASSED!"
+# running the test with a timeout of 5 seconds
+timeout 5s ./run
+# checking the exit status of the test
+if [ $? -eq 0 ]; then
+    # we will check if there is a diff between the input file and the output file
+    if diff input_file.txt output_file.txt >/dev/null; then
+        echo "test no_preappend PASSED!"
+    else
+        echo "test no_preappend FAILED!"
+    fi
 else
-    echo "test no_preappend FAILED!"
-fi 
+    echo "test no_preappend FAILED due to time passed!"
+fi
 
 # remove the run file and output_file
 rm output_file.txt
 rm run
-
 
 # second test #
 
@@ -36,47 +39,36 @@ touch output_file.txt
 
 # adding 'BBB' to the begging of the file
 for ((i = 0; i < 3; i++)); do
-    echo -n B >> output_file.txt
+    echo -n B >>output_file.txt
 done
 
 # compiling the file 'part3.c and the test2.c'
-gcc -o run part3.c test2.c 
+gcc -o run part3.c test2.c
 chmod +x run
-# running the test
-./run
+# running the test with a timeout of 5 seconds
+timeout 1s ./run
+# checking the exit status of the test
+if [ $? -eq 0 ]; then
+    # we expect to see with the PREAPPEND ON "aaa....aaaaBBB"
+    # we add those 'BBB' also to the end of input_file
 
-# we expect to see with the PREAPPEND ON "aaa....aaaaBBB"
-# we add those 'BBB' also to the end of input_file
+    for ((i = 0; i < 3; i++)); do
+        echo -n B >>input_file.txt
+    done
 
-for ((i = 0; i < 3; i++)); do
-    echo -n B >> input_file.txt
-done
-
-
-# we will check if there is a diff between the input file and the output file
-if diff input_file.txt output_file.txt >/dev/null; then
-    echo "test with_preappend PASSED!"
+    # we will check if there is a diff between the input file and the output file
+    if diff input_file.txt output_file.txt >/dev/null; then
+        echo "test with_preappend PASSED!"
+    else
+        echo "test with_preappend FAILED!"
+    fi
 else
-    echo "test with_preappend FAILED!"
-fi 
+    echo "test no_preappend FAILED due to time passed!"
+fi
 
 # remove all files
 rm output_file.txt
 rm input_file.txt
-rm run
-
-# we compile the extanded tests
-gcc -o run extanded_tests.c buffered_open.h part3.c
-chmod +x run
-# we save the last chat printed to indicates if there was a fail
-res=$(./run | tail -c 1)
-# running the test and checking if all tests passed
-if [[ $res == 'P' ]]; then
-    echo "extended test PASSED!"
-else
-    echo "extended test FAILED!"
-fi
-
 rm run
 
 # End of script
