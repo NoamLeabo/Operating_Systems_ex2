@@ -42,10 +42,10 @@ buffered_file_t *buffered_open(const char *pathname, int flags, ...)
     // open the File and hold it in the struct
     if (extra > 0)
     {
-        fid = open(pathname, bf->flags, extra);
+        fid = open(pathname, bf->flags | O_CREAT, extra);
     }
     else
-        fid = open(pathname, bf->flags);
+        fid = open(pathname, bf->flags| O_CREAT);
 
     // in case of an error
     if (fid < 0)
