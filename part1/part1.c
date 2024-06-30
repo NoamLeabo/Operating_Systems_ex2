@@ -138,10 +138,18 @@ int main(int argc, char const *argv[])
         // write the message to the file
         for (int i = 0; i < atoi(argv[4]); i++)
         {
+            int wr;
+            if (i == atoi(argv[4]) - 1) {
+              // write the message to the file withouy \n
+              wr = write(file, argv[1], strlen(argv[1]));
+            } else {
             // concatenate the message with a newline character
             char *buffer = concatenate(argv[1], "\n");
             // write the message to the file
-            int wr = write(file, buffer, strlen(buffer));
+            wr = write(file, buffer, strlen(buffer));
+            // free the buffer
+            free(buffer);
+            }
             // check if the write is successful
             if (wr == -1)
             {
@@ -149,8 +157,6 @@ int main(int argc, char const *argv[])
                 perror("write");
                 return 1;
             }
-            // free the buffer
-            free(buffer);
         }
         // close the file
         close(file);
