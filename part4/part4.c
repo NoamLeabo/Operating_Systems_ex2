@@ -52,13 +52,13 @@ void copy_file(const char *src, const char *dest, int copy_symlinks, int copy_pe
     {
         // we check to which file in the dir we should bw linking to
         char buffer[4096];
-        int linkNum = readlink(src, buffer,4096);
+        int linkNum = readlink(src, buffer, 4096);
         // we create the symlink
         if (symlink(buffer, dest) < 0)
         {
             perror("symlink");
             exit(1);
-        } 
+        }
         return;
     }
 
@@ -151,14 +151,80 @@ void copy_file(const char *src, const char *dest, int copy_symlinks, int copy_pe
             exit(1);
         }
     }
+    else
+    {
+        // we set default flags for dest
+        if (chmod(dest, 0644) < 0)
+        {
+            perror("chmod");
+            exit(1);
+        }
+    }
+}
+
+// a func to check if a dir is empty
+int isDirEmpty(const char *dirname)
+{
+    // counter
+    int n = 0;
+    // intialize a dir entry
+    struct dirent *d;
+    DIR *dir = opendir(dirname);
+    if (dir == NULL)
+    {
+        return -5;
+    }
+
+    // we go through the dir and check if it's empty
+    while ((d = readdir(dir)) != NULL)
+    {
+        // we count the entries in the dir
+        if (++n > 2)
+            // if this is greater than 2 we can break already
+            break;
+    }
+
+    // we close the dir
+    closedir(dir);
+    // if we have less the 2 it mean the dir is empty (since it has ./ and ../)
+    if (n <= 2)
+        return 1;
+    // otherwise we return 0 since the dir is not empty
+    else
+        return 0;
 }
 
 void copy_directory(const char *src, const char *dest, int copy_symlinks, int copy_permissions)
 {
     // we create dest dir
-    if (mkdir(dest, 0755) < 0)
+    int ex = mkdir(dest, 0755);
+    // if we failed to create we check y that is
+    if (ex < 0)
     {
-        return;
+        // we check if the dir exists and empty
+        int IE = isDirEmpty(dest);
+        if (IE == -5)
+        {
+            perror("error checking dest");
+            exit(1);
+        }
+        else if (!IE)
+        {
+            perror("dest is not valid");
+            exit(1);
+        }
+        else
+        {
+            if (IE)
+            {
+                // DO NOTHING
+            }
+            else
+            {
+                perror("dest is not valid");
+                exit(1);
+            }
+        }
     }
 
     // we open the src dir
@@ -196,14 +262,14 @@ void copy_directory(const char *src, const char *dest, int copy_symlinks, int co
         else if (openDir->d_type == 8)
         {
             // we copy the file
-            copy_file(newSrcPath, newDestPath, copy_symlinks, copy_permissions);  
+            copy_file(newSrcPath, newDestPath, copy_symlinks, copy_permissions);
         }
 
         // IF LINK TYPE
         else if (openDir->d_type == 10)
         {
             // we copy the file
-            copy_file(newSrcPath, newDestPath, copy_symlinks, copy_permissions);  
+            copy_file(newSrcPath, newDestPath, copy_symlinks, copy_permissions);
         }
 
         // free the new strings
@@ -246,7 +312,8 @@ int main(int argc, char *argv[])
     }
 
     // we check validation of args
-    if (optioned + 2 != argc) {
+    if (optioned + 2 != argc)
+    {
         print_usage(argv[0]);
         return EXIT_FAILURE;
     }
@@ -257,6 +324,6 @@ int main(int argc, char *argv[])
 
     // w ecopy the dir
     copy_directory(src_dir, dest_dir, copy_symlinks, copy_permissions);
-    
+
     return 0;
 }
